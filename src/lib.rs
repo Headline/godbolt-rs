@@ -66,12 +66,27 @@ pub struct LibraryVersion {
     pub id : String
 }
 
+#[derive(Clone, Debug, Deserialize, Default)]
+pub struct Format {
+    /// Path to executable
+    pub exe : String,
+    /// Long version string
+    pub version : String,
+    /// Name of formatter
+    pub name : String,
+    /// Possible format styles (if any)
+    pub styles : Vec<String>,
+    /// Format type
+    #[serde(rename = "type")]
+    pub format_type : String
+}
+
 /// Internal Cache entry containing the language and it's relevant compilers
 pub struct GodboltCacheEntry {
     /// Language
     pub language : Language,
     /// List of compilers for the language
-    pub compilers : Vec<Compiler>
+    pub compilers : Vec<Compiler>,
 }
 
 #[derive(Clone, Debug, Deserialize, Default)]
@@ -109,6 +124,13 @@ pub struct CompilationResult {
     pub asm : Option<Vec<AsmResult>>
 }
 
+#[derive(Clone, Debug, Deserialize, Default)]
+pub struct FormatResult {
+    /// Exit code of the formatter
+    pub exit : i32,
+    /// Formatter Output
+    pub answer : String
+}
 #[derive(Clone, Serialize, Debug, Default)]
 pub struct InternalOptions {
 
@@ -137,6 +159,13 @@ pub struct CompilationRequest {
 }
 
 #[derive(Clone, Debug, Serialize, Default)]
+pub struct FormatterRequest {
+    source : String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    base: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Default)]
 pub struct CompilationFilters {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub binary : Option<bool>,
@@ -161,7 +190,9 @@ pub struct CompilationFilters {
 /// A struct with calls to all of Godbolt Compiler Explorer's endpoints
 pub struct Godbolt {
     /// Internal cache of godbolt languages and their associated compilers
-    pub cache : Vec<GodboltCacheEntry>
+    pub cache : Vec<GodboltCacheEntry>,
+    /// Cache of all formatting tools
+    pub formats : Vec<Format>
 }
 
 #[derive(Debug)]
@@ -184,8 +215,11 @@ impl std::error::Error for GodboltError {
 
 impl Godbolt {
     pub async fn new() -> Result<Self, Box<dyn Error>> {
+        let formats = Godbolt::get_formats().await?;
+
         let mut instance = Godbolt {
-            cache: Vec::new()
+            cache: Vec::new(),
+            formats
         };
 
         let langs = Godbolt::get_languages().await?;
@@ -201,7 +235,7 @@ impl Godbolt {
 
             let cache = GodboltCacheEntry {
                 language: lang,
-                compilers: relevant
+                compilers: relevant,
             };
             instance.cache.push(cache);
         }
@@ -263,7 +297,7 @@ impl Godbolt {
             Err(e) => return Err(GodboltError::new(&format!("{}", e)))
         };
 
-        //println!("{}", result.text().await.expect("awdawdawd")); return Ok(());
+
         let res = match result.json::<CompilationResult>().await {
             Ok(res) => res,
             Err(e) => return Err(GodboltError::new(&format!("{}", e)))
@@ -334,5 +368,41 @@ impl Godbolt {
 
         let results : Vec<Library>  = res.json::<Vec<Library>>().await?;
         Ok(results)
+    }
+
+    pub async fn get_formats() -> Result<Vec<Format>, Box<dyn Error>> {
+        let client = reqwest::Client::new();
+        let res = client
+            .get("https://godbolt.org/api/formats")
+            .header(USER_AGENT, "godbolt-rust-crate")
+            .header(ACCEPT, "application/json")
+            .send()
+            .await?;
+
+        let results : Vec<Format>  = res.json::<Vec<Format>>().await?;
+        Ok(results)
+    }
+
+    pub async fn format_code(fmt : &str, style : &str, source : &str) -> Result<FormatResult, Box<dyn Error>> {
+        let mut base = Option::None;
+        if !style.is_empty() {
+            base = Some(String::from(style));
+        }
+        let formatter_request = FormatterRequest {
+            source: String::from(source),
+            base
+        };
+
+        let client = reqwest::Client::new();
+        let res = client
+            .post(format!("https://godbolt.org/api/format/{}", fmt))
+            .header(USER_AGENT, "godbolt-rust-crate")
+            .header(ACCEPT, "application/json")
+            .json(&formatter_request)
+            .send()
+            .await?;
+
+        let result = res.json::<FormatResult>().await?;
+        Ok(result)
     }
 }
