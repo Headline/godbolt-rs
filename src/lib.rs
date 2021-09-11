@@ -95,6 +95,11 @@ pub struct AsmResult {
 }
 
 #[derive(Clone, Debug, Deserialize, Default)]
+pub struct StdOutResult {
+    pub text : String
+}
+
+#[derive(Clone, Debug, Deserialize, Default)]
 pub struct StdErrResult {
     pub text : String,
     pub tag : Option<TagResult>,
@@ -108,17 +113,28 @@ pub struct TagResult {
 }
 
 #[derive(Clone, Debug, Deserialize, Default)]
-pub struct CompilationResult {
+pub struct BuildResult {
     pub code : i32,
-    #[serde(rename = "okToCache")]
-    pub ok_to_cache : bool,
-    pub stdout : Vec<String>,
-    pub stderr : Vec<StdErrResult>,
+    pub stdout : Option<Vec<StdOutResult>>,
+    pub stderr : Option<Vec<StdErrResult>>,
     #[serde(rename = "inputFilename")]
-    pub input_filename : String,
+    pub input_filename : Option<String>,
     #[serde(rename = "compilationOptions")]
-    pub compilation_options : Vec<String>,
-    pub tools : Vec<String>,
+    pub compilation_options : Option<Vec<String>>,
+    pub tools : Option<Vec<String>>,
+}
+
+#[derive(Clone, Debug, Deserialize, Default)]
+pub struct GodboltResponse {
+    pub code : i32,
+    #[serde(rename = "didExecute")]
+    pub did_execute: Option<bool>,
+    #[serde(rename = "buildResult")]
+    pub build_result: Option<BuildResult>,
+    #[serde(rename = "execTime")]
+    pub execution_time: Option<String>,
+    pub stdout : Vec<StdOutResult>,
+    pub stderr : Vec<StdErrResult>,
     #[serde(rename = "asmSize")]
     pub asm_size : Option<i32>,
     pub asm : Option<Vec<AsmResult>>
@@ -132,19 +148,22 @@ pub struct FormatResult {
     pub answer : String
 }
 #[derive(Clone, Serialize, Debug, Default)]
-pub struct InternalOptions {
-
+pub struct CompilerOptions {
+    #[serde(rename = "skipAsm")]
+    pub skip_asm : bool,
+    #[serde(rename = "executorRequest")]
+    pub executor_request : bool,
 }
 
 #[derive(Clone, Serialize, Debug, Default)]
-pub struct CompilerOptions {
+pub struct RequestOptions {
     /// Flags to pass to the compiler (i.e. -Wall -Werror)
     #[serde(rename = "userArguments")]
-    user_arguments : String,
+    pub user_arguments : String,
     #[serde(rename = "compilerOptions")]
-    compiler_options : InternalOptions,
+    pub compiler_options : CompilerOptions,
     /// Filters
-    filters : CompilationFilters
+    pub filters : CompilationFilters
 }
 
 /// Struct containing information needed to submit a compilation request
@@ -155,7 +174,7 @@ pub struct CompilationRequest {
     /// Compiler identifier
     compiler : String,
     /// List of compilation options
-    options : CompilerOptions,
+    options : RequestOptions,
 }
 
 #[derive(Clone, Debug, Serialize, Default)]
@@ -275,19 +294,18 @@ impl Godbolt {
         None
     }
 
-    pub async fn send_request(c : &Compiler, source : &str, arguments : &str, filters :& CompilationFilters) -> Result<CompilationResult, GodboltError>{
+    pub async fn send_request(c : &Compiler, source : &str, options : RequestOptions) -> Result<GodboltResponse, GodboltError>{
         let req = CompilationRequest {
             compiler: c.id.clone(),
             source: String::from(source),
-            options : CompilerOptions {
-                filters: filters.clone(),
-                user_arguments: String::from(arguments),
-                ..Default::default()
-            }
+            options : options
         };
 
         let client = reqwest::Client::new();
         let endpoint = format!("https://godbolt.org/api/compiler/{}/compile", c.id);
+
+        //println!("Sent: {}", serde_json::to_string(&req).unwrap());
+
         let result = match client.post(&endpoint)
             .json(&req)
             .header(USER_AGENT, "godbolt-rust-crate")
@@ -297,8 +315,13 @@ impl Godbolt {
             Err(e) => return Err(GodboltError::new(&format!("{}", e)))
         };
 
+        let text = match result.text().await {
+            Ok(res) => res,
+            Err(e) => return Err(GodboltError::new(&format!("{}", e)))
+        };
 
-        let res = match result.json::<CompilationResult>().await {
+        //println!("Recieved: {}", text);
+        let res = match serde_json::from_str::<GodboltResponse>(&text) {
             Ok(res) => res,
             Err(e) => return Err(GodboltError::new(&format!("{}", e)))
         };
