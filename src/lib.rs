@@ -156,12 +156,20 @@ pub struct CompilerOptions {
 }
 
 #[derive(Clone, Serialize, Debug, Default)]
+pub struct ExecuteParameters {
+    pub args : Vec<String>,
+    pub stdin : String,
+}
+
+#[derive(Clone, Serialize, Debug, Default)]
 pub struct RequestOptions {
     /// Flags to pass to the compiler (i.e. -Wall -Werror)
     #[serde(rename = "userArguments")]
     pub user_arguments : String,
     #[serde(rename = "compilerOptions")]
     pub compiler_options : CompilerOptions,
+    #[serde(rename = "executeParameters")]
+    pub execute_parameters : ExecuteParameters,
     /// Filters
     pub filters : CompilationFilters
 }
