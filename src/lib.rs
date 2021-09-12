@@ -219,7 +219,7 @@ pub struct Godbolt {
     /// Internal cache of godbolt languages and their associated compilers
     pub cache : Vec<GodboltCacheEntry>,
     /// Cache of all formatting tools
-    pub formats : Vec<Format>
+    pub formats : Vec<Format>,
 }
 
 #[derive(Debug)]
@@ -302,7 +302,7 @@ impl Godbolt {
         None
     }
 
-    pub async fn send_request(c : &Compiler, source : &str, options : RequestOptions) -> Result<GodboltResponse, GodboltError>{
+    pub async fn send_request(c : &Compiler, source : &str, options : RequestOptions, user_agent : &str) -> Result<GodboltResponse, GodboltError>{
         let req = CompilationRequest {
             compiler: c.id.clone(),
             source: String::from(source),
@@ -316,7 +316,7 @@ impl Godbolt {
 
         let result = match client.post(&endpoint)
             .json(&req)
-            .header(USER_AGENT, "godbolt-rust-crate")
+            .header(USER_AGENT, user_agent)
             .header(ACCEPT, "application/json")
             .send().await {
             Ok(res) => res,
