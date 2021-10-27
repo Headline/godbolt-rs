@@ -190,6 +190,8 @@ pub struct FormatterRequest {
     source : String,
     #[serde(skip_serializing_if = "Option::is_none")]
     base: Option<String>,
+    useSpaces: bool,
+    tabWidth: i32
 }
 
 #[derive(Clone, Debug, Serialize, Default)]
@@ -414,14 +416,16 @@ impl Godbolt {
         Ok(results)
     }
 
-    pub async fn format_code(fmt : &str, style : &str, source : &str) -> Result<FormatResult, Box<dyn Error>> {
+    pub async fn format_code(fmt : &str, style : &str, source : &str, useSpaces : bool, tabWidth : i32) -> Result<FormatResult, Box<dyn Error>> {
         let mut base = Option::None;
         if !style.is_empty() {
             base = Some(String::from(style));
         }
         let formatter_request = FormatterRequest {
             source: String::from(source),
-            base
+            base,
+            useSpaces,
+            tabWidth
         };
 
         let client = reqwest::Client::new();
