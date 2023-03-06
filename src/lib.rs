@@ -349,8 +349,6 @@ impl Godbolt {
         let client = reqwest::Client::new();
         let endpoint = format!("https://godbolt.org/api/compiler/{}/compile", c.id);
 
-        //println!("Sent: {}", serde_json::to_string(&req).unwrap());
-
         let result = match client.post(&endpoint)
             .json(&req)
             .header(USER_AGENT, user_agent)
@@ -365,7 +363,6 @@ impl Godbolt {
             Err(e) => return Err(GodboltError::new(&format!("{}", e)))
         };
 
-        //println!("Recieved: {}", text);
         let res = match serde_json::from_str::<GodboltResponse>(&text) {
             Ok(res) => res,
             Err(e) => return Err(GodboltError::new(&format!("{}", e)))
@@ -408,9 +405,6 @@ impl Godbolt {
                 return Err(GodboltError::new(&e.to_string()));
             }
         };
-
-        println!("{}", str);
-        println!("==========");
 
         let mut buf = Vec::new();
         buf.resize(str.len() * 4 / 3 + 4, 0);
