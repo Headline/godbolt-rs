@@ -2,6 +2,7 @@ use std::error::Error;
 use serde::*;
 use reqwest::header::{ACCEPT, USER_AGENT};
 use std::fmt;
+use base64::{engine, Engine};
 
 mod tests;
 
@@ -229,6 +230,40 @@ pub struct GodboltError {
     details: String
 }
 
+#[derive(Clone, Debug, Serialize, Default)]
+pub struct ClientState {
+    pub sessions : Vec<Session>
+}
+
+#[derive(Clone, Debug, Serialize, Default)]
+pub struct Session {
+    pub id : i32,
+    pub language : String,
+    pub source : String,
+    pub compilers : Vec<SessionCompiler>,
+    pub executors : Vec<Executor>
+}
+
+#[derive(Clone, Debug, Serialize, Default)]
+pub struct SessionCompiler {
+    pub id : String,
+    pub options : String,
+}
+
+#[derive(Clone, Debug, Serialize, Default)]
+pub struct Executor {
+    pub arguments : String,
+    pub compiler : ExecutorCompiler,
+    pub stdin : String,
+}
+
+#[derive(Clone, Debug, Serialize, Default)]
+pub struct ExecutorCompiler {
+    pub id : String,
+    pub libs : Vec<String>,
+    pub options : String
+}
+
 impl GodboltError {
     fn new(msg: &str) -> GodboltError {
         GodboltError{details: msg.to_string()}
@@ -339,6 +374,57 @@ impl Godbolt {
         Ok(res)
     }
 
+    pub fn get_base64(c : &Compiler, source : &str, options : RequestOptions) -> Result<String, GodboltError> {
+        let cstate = ClientState {
+            sessions: vec![
+                Session {
+                    id: 0,
+                    language: c.lang.clone(),
+                    source: source.to_string(),
+                    compilers: vec![
+                        SessionCompiler {
+                            id: c.id.clone(),
+                            options: options.user_arguments.clone(),
+                        }
+                    ],
+                    executors: vec![
+                        Executor {
+                            arguments: options.execute_parameters.args.join(" "),
+                            compiler: ExecutorCompiler {
+                                id: c.id.clone(),
+                                libs: vec![],
+                                options: options.user_arguments,
+                            },
+                            stdin: options.execute_parameters.stdin,
+                        }
+                    ],
+                }
+            ]
+        };
+
+        let str = match serde_json::to_string::<ClientState>(&cstate) {
+            Ok(str) => str,
+            Err(e) => {
+                return Err(GodboltError::new(&e.to_string()));
+            }
+        };
+
+        println!("{}", str);
+        println!("==========");
+
+        let mut buf = Vec::new();
+        buf.resize(str.len() * 4 / 3 + 4, 0);
+
+        match engine::general_purpose::STANDARD.encode_slice(str, &mut buf) {
+            Ok(_) => {
+                let str = String::from_utf8(buf).unwrap();
+                Ok(String::from(str))
+            },
+            Err(e) => {
+                return Err(GodboltError::new(&e.to_string()));
+            }
+        }
+    }
     /// Retrieves a vector of languages
     pub async fn get_languages() -> Result<Vec<Language>, Box<dyn Error>>{
         static LANGUAGE_ENDPOINT : &str = "https://godbolt.org/api/languages?fields=id,name,extensions,monaco,defaultCompiler";

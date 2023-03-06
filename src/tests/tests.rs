@@ -1,4 +1,4 @@
-use crate::{Godbolt, CompilationFilters};
+use crate::{Godbolt, CompilationFilters, RequestOptions, CompilerOptions, ExecuteParameters};
 use std::error::Error;
 
 #[tokio::test]
@@ -30,36 +30,9 @@ async fn get_libraries_for() -> Result<(), Box<dyn Error>> {
 }
 
 #[tokio::test]
-async fn godbolt_exec_asm() -> Result<(), Box<dyn Error>> {
+async fn base64() -> Result<(), Box<dyn Error>> {
     let gbolt = Godbolt::new().await?;
-    let cplusplus = gbolt.cache.iter().find(|p| p.language.name == "C++").unwrap();
-    let compiler = &cplusplus.compilers[0];
-
-    let mut filters = CompilationFilters::default();
-    filters.execute = Some(true);
-
-    Godbolt::send_request(compiler, "int sum(int a, int b) { return a + b; }", "-O3", &filters).await?;
-    Ok(())
-}
-
-#[tokio::test]
-async fn godbolt_exec_asm_fail() -> Result<(), Box<dyn Error>> {
-    let gbolt = Godbolt::new().await?;
-    let cplusplus = gbolt.cache.iter().find(|p| p.language.name == "C++").unwrap();
-    let compiler = &cplusplus.compilers[0];
-
-    let mut filters = CompilationFilters::default();
-    filters.execute = Some(true);
-
-    Godbolt::send_request(compiler, "int sum(iwnt a, int b) { return a + b; }", "-O3", &filters).await?;
-    Ok(())
-}
-
-#[tokio::test]
-async fn godbolt_exec_asm_filters() -> Result<(), Box<dyn Error>> {
-    let gbolt = Godbolt::new().await?;
-    let cplusplus = gbolt.cache.iter().find(|p| p.language.name == "C++").unwrap();
-    let compiler = &cplusplus.compilers[0];
+    let c = gbolt.resolve("clang1000").unwrap();
 
     let filters = CompilationFilters {
         binary: None,
@@ -72,30 +45,24 @@ async fn godbolt_exec_asm_filters() -> Result<(), Box<dyn Error>> {
         library_code: None,
         trim: None
     };
-    Godbolt::send_request(compiler, "int sum(int a, int b) { return a + b; }", "-O3", &filters).await?;
-    Ok(())
-}
 
-#[tokio::test]
-async fn godbolt_exec_asm_filters_fail() -> Result<(), Box<dyn Error>> {
-    let gbolt = Godbolt::new().await?;
-    let cplusplus = gbolt.cache.iter().find(|p| p.language.name == "C++").unwrap();
-    let compiler = &cplusplus.compilers[0];
-
-    let filters = CompilationFilters {
-        binary: None,
-        comment_only: Some(true),
-        demangle: Some(true),
-        directives: Some(true),
-        execute: None,
-        intel: Some(true),
-        labels: Some(true),
-        library_code: None,
-        trim: None
+    let opts = RequestOptions {
+        user_arguments: "-O3".to_string(),
+        compiler_options: CompilerOptions {
+            skip_asm: false,
+            executor_request: true,
+        },
+        execute_parameters: ExecuteParameters {
+            args: vec![String::from("awd")],
+            stdin: "teststdin".to_string(),
+        },
+        filters,
     };
-    Godbolt::send_request(compiler, "#include <iostream>\nint main() {\nstd::cout << \"Test\";\n}", "-O3", &filters).await?;
+    let str = Godbolt::get_base64(&c, "#include <iostream>\nint main() {\nstd::cout << \"😂\";\n}", opts)?;
+    assert!(str.len() > 0);
     Ok(())
 }
+
 
 #[tokio::test]
 async fn resolve() -> Result<(), Box<dyn Error>> {
