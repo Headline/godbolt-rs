@@ -406,19 +406,9 @@ impl Godbolt {
             }
         };
 
-        let mut buf = Vec::new();
-        buf.resize(str.len() * 4 / 3 + 4, 0);
-
-        match engine::general_purpose::STANDARD.encode_slice(str, &mut buf) {
-            Ok(_) => {
-                let str = String::from_utf8(buf).unwrap();
-                Ok(String::from(str))
-            },
-            Err(e) => {
-                return Err(GodboltError::new(&e.to_string()));
-            }
-        }
+        Ok(engine::general_purpose::STANDARD.encode(str))
     }
+
     /// Retrieves a vector of languages
     pub async fn get_languages() -> Result<Vec<Language>, Box<dyn Error>>{
         static LANGUAGE_ENDPOINT : &str = "https://godbolt.org/api/languages?fields=id,name,extensions,monaco,defaultCompiler";
