@@ -133,7 +133,7 @@ pub struct GodboltResponse {
     #[serde(rename = "buildResult")]
     pub build_result: Option<BuildResult>,
     #[serde(rename = "execTime")]
-    pub execution_time: Option<String>,
+    pub execution_time: Option<i32>,
     pub stdout : Vec<StdOutResult>,
     pub stderr : Vec<StdErrResult>,
     #[serde(rename = "asmSize")]
