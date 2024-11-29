@@ -104,3 +104,28 @@ async fn compilation_attempt() -> Result<(), Box<dyn Error>> {
     assert!(res.is_ok());
     Ok(())
 }
+
+#[tokio::test]
+async fn compilation_attempt2() -> Result<(), Box<dyn Error>> {
+    let gbolt = Godbolt::new().await?;
+    let c = gbolt.resolve("vc_v19_latest_x64");
+    assert!(c.is_some());
+    let compiler = c.unwrap();
+
+    let options = RequestOptions {
+        user_arguments: String::from(""),
+        compiler_options: CompilerOptions {
+            skip_asm: true,
+            executor_request: true,
+        },
+        execute_parameters: ExecuteParameters {
+            args: vec![],
+            stdin: String::from(""),
+        },
+        filters: CompilationFilters::default(),
+    };
+
+    let res = Godbolt::send_request(&compiler, "void foo(void) {}", options, "godbolt-rs-test").await;
+    assert!(res.is_ok());
+    Ok(())
+}
