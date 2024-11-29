@@ -321,7 +321,7 @@ impl Godbolt {
     pub fn find_compiler_by_id(&self, compiler_id : &str) -> Option<&Compiler> {
         for entry in &self.cache {
             for compiler in &entry.compilers {
-                if compiler.id == compiler_id {
+                if compiler.id.to_lowercase() == compiler_id.to_lowercase() {
                     return Some(&compiler);
                 }
             }
@@ -346,6 +346,12 @@ impl Godbolt {
             options : options
         };
 
+        let send = match serde_json::to_string(&req) {
+            Ok(res) => res,
+            Err(e) => return Err(GodboltError::new(&format!("{}", e)))
+        };
+        println!("send: {}", send);
+
         let client = reqwest::Client::new();
         let endpoint = format!("https://godbolt.org/api/compiler/{}/compile", c.id);
 
@@ -363,6 +369,7 @@ impl Godbolt {
             Err(e) => return Err(GodboltError::new(&format!("{}", e)))
         };
 
+        println!("{}", text);
         let res = match serde_json::from_str::<GodboltResponse>(&text) {
             Ok(res) => res,
             Err(e) => return Err(GodboltError::new(&format!("{}", e)))
