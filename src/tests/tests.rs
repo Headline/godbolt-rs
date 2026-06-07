@@ -132,3 +132,35 @@ async fn compilation_attempt2() -> Result<(), Box<dyn Error>> {
     assert!(res.is_ok());
     Ok(())
 }
+#[tokio::test]
+async fn produce_pp_filter_headers() -> Result<(), Box<dyn Error>> {
+    use crate::ProducePp;
+    let gbolt = Godbolt::new().await?;
+    let compiler = gbolt.resolve("g142").expect("g142 should resolve");
+
+    let options = RequestOptions {
+        user_arguments: String::new(),
+        compiler_options: CompilerOptions {
+            skip_asm: true,
+            executor_request: false,
+            produce_pp: Some(ProducePp { filter_headers: true, clang_format: false }),
+        },
+        execute_parameters: ExecuteParameters::default(),
+        filters: CompilationFilters::default(),
+    };
+
+    let res = Godbolt::send_request(
+        &compiler,
+        "#include <stdio.h>\nint main() { printf(\"hi\"); return 0; }",
+        options,
+        "godbolt-rs-test",
+    ).await?;
+
+    let pp = res.pp_output.expect("ppOutput should be present");
+    // With filter-headers on, the <stdio.h> body is stripped, so the output
+    // should be tiny and must not contain any preprocessed header declarations.
+    assert!(pp.number_of_lines_filtered > 0, "expected headers to be filtered");
+    assert!(pp.output.contains("int main()"));
+    assert!(!pp.output.contains("extern"), "header bodies should be filtered out");
+    Ok(())
+}

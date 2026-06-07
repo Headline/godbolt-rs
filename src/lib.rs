@@ -126,6 +126,13 @@ pub struct BuildResult {
 }
 
 #[derive(Clone, Debug, Deserialize, Default)]
+pub struct PpResult {
+    #[serde(rename = "numberOfLinesFiltered")]
+    pub number_of_lines_filtered : i32,
+    pub output : String,
+}
+
+#[derive(Clone, Debug, Deserialize, Default)]
 pub struct GodboltResponse {
     pub code : i32,
     #[serde(rename = "didExecute")]
@@ -138,7 +145,9 @@ pub struct GodboltResponse {
     pub stderr : Vec<StdErrResult>,
     #[serde(rename = "asmSize")]
     pub asm_size : Option<i32>,
-    pub asm : Option<Vec<AsmResult>>
+    pub asm : Option<Vec<AsmResult>>,
+    #[serde(rename = "ppOutput")]
+    pub pp_output : Option<PpResult>,
 }
 
 #[derive(Clone, Debug, Deserialize, Default)]
@@ -162,6 +171,8 @@ pub struct CompilerOptions {
 pub struct ProducePp {
     #[serde(rename = "filter-headers")]
     pub filter_headers : bool,
+    #[serde(rename = "clang-format")]
+    pub clang_format : bool,
 }
 
 #[derive(Clone, Serialize, Debug, Default)]
