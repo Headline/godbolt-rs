@@ -154,6 +154,14 @@ pub struct CompilerOptions {
     pub skip_asm : bool,
     #[serde(rename = "executorRequest")]
     pub executor_request : bool,
+    #[serde(rename = "producePp", skip_serializing_if = "Option::is_none")]
+    pub produce_pp : Option<ProducePp>,
+}
+
+#[derive(Clone, Serialize, Debug, Default)]
+pub struct ProducePp {
+    #[serde(rename = "filter-headers")]
+    pub filter_headers : bool,
 }
 
 #[derive(Clone, Serialize, Debug, Default)]

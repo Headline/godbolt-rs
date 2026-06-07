@@ -52,6 +52,7 @@ async fn base64() -> Result<(), Box<dyn Error>> {
         compiler_options: CompilerOptions {
             skip_asm: false,
             executor_request: true,
+            produce_pp: None,
         },
         execute_parameters: ExecuteParameters {
             args: vec![String::from("awd")],
@@ -92,6 +93,7 @@ async fn compilation_attempt() -> Result<(), Box<dyn Error>> {
         compiler_options: CompilerOptions {
             skip_asm: true,
             executor_request: true,
+            produce_pp: None,
         },
         execute_parameters: ExecuteParameters {
             args: vec![],
@@ -117,6 +119,7 @@ async fn compilation_attempt2() -> Result<(), Box<dyn Error>> {
         compiler_options: CompilerOptions {
             skip_asm: true,
             executor_request: true,
+            produce_pp: None,
         },
         execute_parameters: ExecuteParameters {
             args: vec![],
